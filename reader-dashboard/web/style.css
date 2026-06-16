@@ -1,0 +1,77 @@
+:root{
+  --bg:#0e1116; --panel:#161b22; --panel2:#1c232c; --border:#2a323c;
+  --txt:#e6edf3; --muted:#8b949e; --accent:#f3a712; --accent2:#58a6ff;
+  --good:#3fb950; --warn:#d29922;
+  --radius:14px; --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--txt); direction:ltr;
+  font-family:"Segoe UI",system-ui,Arial,sans-serif; line-height:1.5;
+  font-size:15px;
+}
+a{color:var(--accent2); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1200px; margin:0 auto; padding:24px 20px 64px}
+
+/* header / totals */
+header{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px}
+h1{font-size:24px; margin:0; font-weight:700}
+.sub{color:var(--muted); font-size:13px}
+.totals{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin:18px 0 26px}
+.stat{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px}
+.stat .n{font-size:26px; font-weight:700; color:var(--accent)}
+.stat .l{font-size:12px; color:var(--muted); margin-top:2px}
+
+/* toolbar */
+.toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px}
+input,select,button{
+  background:var(--panel2); color:var(--txt); border:1px solid var(--border);
+  border-radius:10px; padding:9px 12px; font-size:14px; font-family:inherit;
+}
+input:focus,select:focus{outline:none; border-color:var(--accent2)}
+button{cursor:pointer; transition:.15s}
+button:hover{border-color:var(--accent2)}
+button.primary{background:var(--accent); color:#1b1402; border-color:var(--accent); font-weight:600}
+.search{flex:1; min-width:200px}
+
+/* table */
+table{width:100%; border-collapse:collapse; background:var(--panel); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow)}
+th,td{padding:11px 12px; text-align:left; border-bottom:1px solid var(--border)}
+th{background:var(--panel2); color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; user-select:none; white-space:nowrap}
+th:hover{color:var(--txt)}
+tbody tr{transition:.1s}
+tbody tr:hover{background:var(--panel2); cursor:pointer}
+td.title{font-weight:600; max-width:340px}
+td.author{color:var(--muted)}
+.pill{display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600}
+.pill.done{background:rgba(63,185,80,.15); color:var(--good)}
+.pill.reading{background:rgba(88,166,255,.15); color:var(--accent2)}
+.pill.unread{background:rgba(139,148,158,.15); color:var(--muted)}
+.bar{height:6px; background:var(--border); border-radius:4px; overflow:hidden; min-width:60px}
+.bar>i{display:block; height:100%; background:var(--accent)}
+.num{font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right}
+.muted{color:var(--muted)}
+.nosc{opacity:.5}
+
+/* detail page */
+.back{display:inline-block; margin-bottom:14px; color:var(--muted)}
+.bookhead{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; margin-bottom:8px}
+.bookhead h1{font-size:26px}
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:18px 0}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px}
+.card .n{font-size:24px; font-weight:700; color:var(--accent)}
+.card .l{font-size:12px; color:var(--muted)}
+section.block{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin:16px 0}
+section.block h2{margin:0 0 12px; font-size:17px; border-left:3px solid var(--accent); padding-left:10px}
+.kv{display:grid; grid-template-columns:max-content 1fr; gap:6px 18px; font-size:14px}
+.kv dt{color:var(--muted); white-space:nowrap}
+.kv dd{margin:0; word-break:break-word; font-variant-numeric:tabular-nums}
+.timeline{list-style:none; padding:0; margin:0}
+.timeline li{padding:8px 0; border-bottom:1px dashed var(--border); display:flex; justify-content:space-between; gap:12px}
+.timeline li:last-child{border:0}
+.annot{background:var(--panel2); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px}
+pre.raw{background:#0a0d12; border:1px solid var(--border); border-radius:10px; padding:14px; overflow:auto; font-size:12.5px; direction:ltr; text-align:left; max-height:480px}
+details>summary{cursor:pointer; color:var(--muted); font-size:13px; margin-top:6px}
+.loading{text-align:center; padding:60px; color:var(--muted)}

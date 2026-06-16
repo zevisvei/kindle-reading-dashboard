@@ -1,0 +1,24 @@
+# Personal reading data — never commit
+reader-dashboard/cache/
+reader-dashboard/web/library.json
+**/*.azw3f
+**/*.azw3r
+**/*.azw3f.json
+**/*.azw3r.json
+**/*.bad_file
+innovators_sidecars/
+*.csv
+
+# Local SSH overrides
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Tooling / OS
+.playwright-mcp/
+.DS_Store
+Thumbs.db
+*.png

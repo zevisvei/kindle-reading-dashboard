@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book detail</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap" id="app"><div class="loading">Loading…</div></div>
+
+<script src="common.js"></script>
+<script>
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function kvRows(obj, map){
+  return Object.entries(map).map(([k,lbl])=>{
+    let v = obj[k];
+    if (v==null||v===''||v==='_INVALID_') return '';
+    return `<dt>${lbl}</dt><dd>${esc(v)}</dd>`;
+  }).join('');
+}
+function card(n,l){return `<div class="card"><div class="n">${n}</div><div class="l">${l}</div></div>`;}
+
+// "pos N · p. P/T" — appends page only when a mapping exists (apnx, in common.js)
+function posLabel(b, position){
+  const pg = pageOf(b, position), t = totalPages(b);
+  return `pos ${esc(position)}` + (pg!=null ? ` · <b>p. ${pg}${t?'/'+t:''}</b>` : '');
+}
+
+function speedBlock(tm){
+  const ac = tm.averageCalculator||{}, dists = ac.normalDistributions||[];
+  if(!dists.length) return '';
+  const rows = dists.map((d,i)=>{
+    const mean = d.count? d.sum/d.count : 0;
+    const varr = d.count? d.sumOfSquares/d.count - mean*mean : 0;
+    const sd = varr>0? Math.sqrt(varr):0;
+    return `<li><span>${i===0?'Normal reading':'Skimming/flipping'} · ${fmtNum(d.count)} samples</span>
+            <span class="num"><b>${Math.round(mean)}</b> WPM ±${Math.round(sd)}</span></li>`;
+  }).join('');
+  const out = (ac.outliers||[]).flat().map(x=>Math.round(x));
+  return `<section class="block"><h2>Reading-speed distribution</h2>
+    <ul class="timeline">${rows}</ul>
+    ${out.length?`<div class="sub" style="margin-top:8px">Discarded outliers: ${out.join(', ')} WPM</div>`:''}</section>`;
+}
+
+function timelineBlock(b){
+  const f = b.azw3f||{};
+  const ph = f['page.history.store']||[];
+  const lpr = f.lpr, fpr = f.fpr, erl = f.erl;
+  let items='';
+  if(fpr) items += `<li><span>📖 First position (fpr)</span><span class="num">${posLabel(b,fpr.position)} · ${fmtDate(fpr.time)}</span></li>`;
+  ph.forEach((r,i)=> items += `<li><span>Point ${i+1}</span><span class="num">${posLabel(b,r.position)} · ${fmtDate(r.time)}</span></li>`);
+  if(lpr) items += `<li><span>🔖 Last position (lpr)</span><span class="num">${posLabel(b,lpr.position)} · ${fmtDate(lpr.time)}</span></li>`;
+  if(erl) items += `<li><span>End of content (erl)</span><span class="num">${esc(typeof erl==='object'?JSON.stringify(erl):erl)}</span></li>`;
+  if(!items) return '';
+  return `<section class="block"><h2>Reading timeline</h2><ul class="timeline">${items}</ul></section>`;
+}
+
+function annotBlock(b){
+  if(!b.annotations.length) return '';
+  const rows = b.annotations.map(a=>{
+     const pg = pageOf(b, a.startPosition), t = totalPages(b);
+     const pgs = pg!=null ? ` · <b>p. ${pg}${t?'/'+t:''}</b>` : '';
+     return `<div class="annot">
+     <b>${a.type==='highlight'?'Highlight':a.type==='note'?'Note':a.type==='bookmark'?'Bookmark':a.type}</b>
+     · pos ${esc(a.startPosition)}–${esc(a.endPosition)}${pgs} · ${fmtDate(a.creationTime)}
+     ${a.note?`<div style="margin-top:6px">${esc(a.note)}</div>`:''}</div>`;}).join('');
+  return `<section class="block"><h2>Highlights &amp; notes (${b.annotations.length})</h2>${rows}</section>`;
+}
+
+function fontBlock(r){
+  const fp = r['font.prefs'] || (r['reader.state.preferences']||{}).fontPreferences;
+  if(!fp) return '';
+  return `<section class="block"><h2>Display settings</h2><dl class="kv">${kvRows(fp,{
+    typeface:'Typeface', size:'Size', lineSp:'Line spacing', align:'Alignment', bold:'Bold',
+    insetTop:'Margin top', insetBottom:'Margin bottom', insetLeft:'Margin left', insetRight:'Margin right',
+    readingPresetSelected:'Preset'
+  })}</dl></section>`;
+}
+
+function deviceSessionsBlock(b){
+  const ds = b.device_sessions||[];
+  if(!ds.length) return '';
+  const rows = ds.map((x,i)=>`<li><span>Session ${i+1}${x.complete?' ✓':''}</span>
+     <span class="num">${x.minutes!=null?fmtMinutes(x.minutes):'—'} · loc ${esc(x.startLoc)}→${esc(x.endLoc)} · ${fmtDate(x.start)}</span></li>`).join('');
+  return `<section class="block"><h2>Reading sessions (device · fmcache)</h2>
+    <ul class="timeline">${rows}</ul>
+    <div class="sub" style="margin-top:8px">Local metrics queue — recent sessions only, not full history.</div></section>`;
+}
+function readStateBlock(b){
+  if(!b.fm_read_state) return '';
+  return `<section class="block"><h2>Read status (new app)</h2><dl class="kv">
+    <dt>read_state</dt><dd>${esc(b.fm_read_state)} ${b.fm_read_state==='READ'?'(marked manually)':''}</dd>
+    <dt>Source</dt><dd>fmcache · mar_content_readstate_update_success</dd>
+    <dt>cc.db p_readState</dt><dd>${b.readState==null?'null':b.readState} (legacy system — not updated by the new mark)</dd>
+  </dl></section>`;
+}
+function rawDump(label,obj){
+  if(!obj || !Object.keys(obj).length) return '';
+  return `<details><summary>${label} — raw JSON</summary><pre class="raw">${esc(JSON.stringify(obj,null,2))}</pre></details>`;
+}
+
+function render(b){
+  const s = b.stats||{}, f = b.azw3f||{}, r = b.azw3r||{}, tm = f['timer.model'];
+  const [cls,lbl] = readStatusLabel(b), p = pct(b);
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <a class="back" href="index.html">← Back to library</a>
+    <div class="bookhead">
+      <div>
+        <h1>${esc(b.title)}</h1>
+        <div class="sub">${esc(b.author)||''} ${b.series?'· Series: '+esc(b.series.name||b.series.label):''}
+          · <span class="pill ${cls}">${lbl}</span></div>
+      </div>
+    </div>
+
+    <div class="cards">
+      ${card(fmtMinutes(s.minutes), 'Reading time')}
+      ${card(s.wpm_reading||s.wpm_overall||'—', 'Net pace (WPM)')}
+      ${card(p+'%', 'Complete')}
+      ${(()=>{const t=totalPages(b),cur=f.lpr?pageOf(b,f.lpr.position):null;
+            return t?card(cur!=null?`${cur}/${t}`:t, cur!=null?'Current page':'Pages'):'';})()}
+      ${card(s.words_read?fmtNum(s.words_read):'—', 'Words read')}
+      ${card(s.book_words?fmtNum(s.book_words):'—', 'Words in book')}
+      ${card(b.annotations.length, 'Annotations')}
+    </div>
+
+    ${tm?`<section class="block"><h2>Reading data (timer.model)</h2><dl class="kv">
+      <dt>Cumulative time</dt><dd>${fmtMinutes(s.minutes)} (${fmtNum(tm.totalTime)} ms)</dd>
+      <dt>Words read</dt><dd>${fmtNum(tm.totalWords)}</dd>
+      <dt>Percent of book</dt><dd>${(tm.totalPercent*100).toFixed(1)}%</dd>
+      <dt>WPM overall</dt><dd>${s.wpm_overall} (incl. breaks)</dd>
+      <dt>WPM net</dt><dd>${s.wpm_reading}</dd>
+    </dl></section>`:'<section class="block"><h2>Reading data</h2><div class="muted">No sidecar with reading data for this book.</div></section>'}
+
+    ${tm?speedBlock(tm):''}
+    ${timelineBlock(b)}
+    ${deviceSessionsBlock(b)}
+    ${readStateBlock(b)}
+    ${annotBlock(b)}
+    ${fontBlock(r)}
+
+    <section class="block"><h2>Library metadata (cc.db)</h2><dl class="kv">${kvRows(b.cc_raw,{
+      p_cdeKey:'CDE Key', p_cdeType:'Type', p_publisher:'Publisher', p_languages_0:'Language',
+      p_publicationDate:'Published', p_percentFinished:'% (cc.db)',
+      p_lastAccessedPosition:'Last position', p_contentSize:'Content size',
+      p_location:'File path', p_uuid:'UUID'
+    })}
+      <dt>Last access</dt><dd>${fmtDate(b.lastAccess)}</dd>
+    </dl></section>
+
+    <section class="block"><h2>Raw data</h2>
+      ${rawDump('azw3f (reading data)', f)}
+      ${rawDump('azw3r (annotations/display)', r)}
+      ${rawDump('cc.db (all fields)', b.cc_raw)}
+      ${rawDump('fmcache.db (new DB — status/sessions/events)', b.fmcache_raw)}
+    </section>
+  `;
+  document.title = b.title;
+}
+
+loadLibrary().then(d=>{
+  const id = qparam('uuid');
+  const b = d.books.find(x=>x.uuid===id);
+  if(!b){ document.getElementById('app').innerHTML='<a class="back" href="index.html">← Back</a><div class="loading">Book not found</div>'; return; }
+  render(b);
+}).catch(e=> document.getElementById('app').innerHTML=`<div class="loading">Error: ${e.message}</div>`);
+</script>
+</body>
+</html>

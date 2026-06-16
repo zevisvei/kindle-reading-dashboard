@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kindle Library — Reading Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>📚 Kindle Library</h1>
+      <div class="sub">Reading time &amp; pace · metadata · annotations</div>
+    </div>
+    <button class="primary" onclick="refresh(this)">🔄 Sync from Kindle</button>
+  </header>
+
+  <div class="totals" id="totals"></div>
+
+  <div class="toolbar">
+    <input class="search" id="search" placeholder="Search title / author…">
+    <select id="filter">
+      <option value="all">All books</option>
+      <option value="reading">Reading</option>
+      <option value="done">Read</option>
+      <option value="sidecar">With reading data</option>
+    </select>
+  </div>
+
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th data-k="title">Title</th>
+        <th data-k="author">Author</th>
+        <th data-k="series">Series</th>
+        <th data-k="percent" class="num">%</th>
+        <th data-k="minutes" class="num">Time</th>
+        <th data-k="wpm" class="num">Pace</th>
+        <th data-k="page" class="num">Page</th>
+        <th data-k="words" class="num">Words</th>
+        <th data-k="state">Status</th>
+      </tr>
+    </thead>
+    <tbody id="rows"><tr><td colspan="9" class="loading">Loading…</td></tr></tbody>
+  </table>
+</div>
+
+<script src="common.js"></script>
+<script>
+let BOOKS = [], sortKey = 'minutes', sortDir = -1;
+
+function keyval(b, k) {
+  const s = b.stats || {};
+  switch (k) {
+    case 'title': return b.title || '';
+    case 'author': return b.author || '';
+    case 'series': return (b.series && b.series.name) || '';
+    case 'percent': return pct(b);
+    case 'minutes': return s.minutes || 0;
+    case 'wpm': return s.wpm_reading || s.wpm_overall || 0;
+    case 'page': return currentPage(b) || 0;
+    case 'words': return s.words_read || 0;
+    case 'state': return readRank(b);
+  }
+  return '';
+}
+
+function render() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const f = document.getElementById('filter').value;
+  let list = BOOKS.filter(b => {
+    if (q && !((b.title || '').toLowerCase().includes(q) ||
+               (b.author || '').toLowerCase().includes(q))) return false;
+    if (f === 'reading' && b.read_status !== 'reading') return false;
+    if (f === 'done' && b.read_status !== 'read') return false;
+    if (f === 'sidecar' && !b.has_sidecar) return false;
+    return true;
+  });
+  list.sort((a, b) => {
+    const va = keyval(a, sortKey), vb = keyval(b, sortKey);
+    if (typeof va === 'string') return sortDir * va.localeCompare(vb, 'en');
+    return sortDir * (va - vb);
+  });
+
+  const rows = document.getElementById('rows');
+  if (!list.length) { rows.innerHTML = '<tr><td colspan="9" class="loading">No results</td></tr>'; return; }
+  rows.innerHTML = list.map(b => {
+    const s = b.stats || {}, [cls, lbl] = readStatusLabel(b), p = pct(b);
+    const wpm = s.wpm_reading || s.wpm_overall;
+    const cp = currentPage(b), tp = totalPages(b);
+    const pageCell = (cp != null && tp) ? `${cp}/${tp}` : (tp ? `–/${tp}` : '—');
+    return `<tr onclick="location='book.html?uuid=${encodeURIComponent(b.uuid)}'" class="${b.has_sidecar ? '' : 'nosc'}">
+      <td class="title">${esc(b.title)}</td>
+      <td class="author">${esc(b.author) || '—'}</td>
+      <td class="muted">${b.series ? esc(b.series.name || b.series.label || '✓') : '—'}</td>
+      <td class="num"><div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+          <span>${p}%</span><div class="bar" style="width:50px"><i style="width:${p}%"></i></div></div></td>
+      <td class="num">${fmtMinutes(s.minutes)}</td>
+      <td class="num">${wpm ? wpm : '—'}</td>
+      <td class="num">${pageCell}</td>
+      <td class="num">${s.words_read ? fmtNum(s.words_read) : '—'}</td>
+      <td><span class="pill ${cls}">${lbl}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function renderTotals(t) {
+  document.getElementById('totals').innerHTML = `
+    <div class="stat"><div class="n">${t.books}</div><div class="l">Books</div></div>
+    <div class="stat"><div class="n">${t.hours}</div><div class="l">Reading hours</div></div>
+    <div class="stat"><div class="n">${fmtNum(t.words)}</div><div class="l">Words read</div></div>
+    <div class="stat"><div class="n">${t.avg_wpm}</div><div class="l">Avg pace (WPM)</div></div>
+    <div class="stat"><div class="n">${t.read != null ? t.read : '—'}</div><div class="l">Read</div></div>
+    <div class="stat"><div class="n">${t.annotations}</div><div class="l">Annotations</div></div>`;
+}
+
+document.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => {
+  const k = th.dataset.k;
+  if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = (k === 'title' || k === 'author') ? 1 : -1; }
+  render();
+});
+document.getElementById('search').oninput = render;
+document.getElementById('filter').onchange = render;
+
+loadLibrary().then(d => { BOOKS = d.books; renderTotals(d.totals); render(); })
+  .catch(e => { document.getElementById('rows').innerHTML = `<tr><td colspan="9" class="loading">Error: ${e.message}</td></tr>`; });
+</script>
+</body>
+</html>
