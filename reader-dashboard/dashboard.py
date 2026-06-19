@@ -15,6 +15,8 @@ Usage:
     python dashboard.py build              # only (re)build web/library.json
 
 Connection: SSH defaults to the device in ksh.py (192.168.15.244, root/kindle).
+
+If the environment variable KINDLE_NAME is set a CACHE subdirectory named KINDLE_NAME will be used. This allows for having more than one kindle reader.
 """
 import argparse
 import datetime
@@ -28,9 +30,10 @@ import sys
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
+KINDLE_NAME = os.environ.get("KINDLE_NAME", "")
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-CACHE = os.path.join(HERE, "cache")
+CACHE = os.path.join(HERE, "cache", KINDLE_NAME)
 WEB = os.path.join(HERE, "web")
 KRDS_DIR = os.path.join(ROOT, "reading-metadata", "scripts")
 DB_PATH = os.path.join(CACHE, "cc.db")
