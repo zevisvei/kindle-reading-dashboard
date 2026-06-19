@@ -6,6 +6,8 @@ No cloud account, no Amazon API, no KOReader. Everything is parsed straight from
 
 > Tested on a **Kindle Basic 10th gen (J9G29R), firmware 5.18.1**, jailbroken with USB networking enabled.
 
+> Discussion / support: [MobileRead thread #373997](https://www.mobileread.com/forums/showthread.php?t=373997).
+
 ![dashboard list](docs/screenshot-list.png)
 
 ---
