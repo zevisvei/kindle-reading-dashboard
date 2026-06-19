@@ -54,8 +54,13 @@ def _ssh_connect():
     import ksh  # HOST / USER / PW live here
     c = paramiko.SSHClient()
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    c.connect(ksh.HOST, username=ksh.USER, password=ksh.PW,
-              timeout=15, look_for_keys=False, allow_agent=False)
+    # ksh.connect_kwargs() handles password AND public-key login (key-only
+    # devices with password auth disabled). Falls back to legacy kwargs.
+    if hasattr(ksh, "connect_kwargs"):
+        c.connect(ksh.HOST, **ksh.connect_kwargs())
+    else:
+        c.connect(ksh.HOST, username=ksh.USER, password=ksh.PW,
+                  timeout=15, look_for_keys=False, allow_agent=False)
     return c, ksh.HOST
 
 

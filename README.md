@@ -74,6 +74,20 @@ Two ways — both supported:
    export KINDLE_PW=kindle             # the well-known default jailbreak password
    ```
 
+   **Public-key login.** If your device is configured for key-only SSH (public
+   key in `authorized_keys`, password auth disabled), point at a private key and
+   clear the password:
+
+   ```bash
+   export KINDLE_SSH_KEY=~/.ssh/id_ed25519   # private-key path
+   export KINDLE_PW=                         # empty = don't try password
+   ```
+
+   `ssh-agent` and default `~/.ssh` keys are also picked up automatically
+   (`look_for_keys`/`allow_agent` are on). Password stays the default, so
+   existing setups are unaffected. (Reported on MobileRead:
+   [thread #373997](https://www.mobileread.com/forums/showthread.php?t=373997).)
+
    If Windows shows the Kindle as *"Unknown USB Device (Device Descriptor Request Failed)"* or as a COM port instead of a network adapter, see [docs/usb-networking.md](docs/usb-networking.md).
 
 2. **USB mass storage / local folder** — mount the Kindle as a drive and point the tool at the `documents` folder. (`cc.db` is **not** on the USB partition, so pull it once via SSH; sidecars are on the USB partition.)
