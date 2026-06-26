@@ -48,7 +48,7 @@ function timelineBlock(b){
   const ph = f['page.history.store']||[];
   const lpr = f.lpr, fpr = f.fpr, erl = f.erl;
   let items='';
-  if(fpr) items += `<li><span>📖 First position (fpr)</span><span class="num">${posLabel(b,fpr.position)} · ${fmtDate(fpr.time)}</span></li>`;
+  if(fpr) items += `<li><span>📖 Furthest position (fpr)</span><span class="num">${posLabel(b,fpr.position)} · ${fmtDate(fpr.time)}</span></li>`;
   ph.forEach((r,i)=> items += `<li><span>Point ${i+1}</span><span class="num">${posLabel(b,r.position)} · ${fmtDate(r.time)}</span></li>`);
   if(lpr) items += `<li><span>🔖 Last position (lpr)</span><span class="num">${posLabel(b,lpr.position)} · ${fmtDate(lpr.time)}</span></li>`;
   if(erl) items += `<li><span>End of content (erl)</span><span class="num">${esc(typeof erl==='object'?JSON.stringify(erl):erl)}</span></li>`;

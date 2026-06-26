@@ -76,7 +76,8 @@ Array of `page.history.record`: `{position (string), time (ISO datetime)}`. The 
 ## Reading position (in `.azw3f` and `.azw3r`)
 
 - **`lpr`** — Last Page Read: `{position, time}`. Old style is just a position string; version ≤2 adds time.
-- **`fpr` / `updated_lpr`** — extended: `{position, time, timeZoneOffset, country, device}`.
+- **`fpr`** — Furthest Position Read: the highest position ever reached, not the most recent. Extended shape `{position, time, timeZoneOffset, country, device}`. Verified empirically: page forward N screens then back M — `fpr` advances by ~N (furthest), `lpr` by ~(N−M) (last).
+- **`updated_lpr`** — extended `lpr`, same shape as `fpr`.
 - **`erl`** — End Reading Location (single position).
 - **`sync_lpr`** — bool, whether to sync LPR to the cloud.
 

@@ -10,6 +10,8 @@ No cloud account, no Amazon API, no KOReader. Everything is parsed straight from
 
 ![dashboard list](docs/screenshot-list.png)
 
+![per-book detail](docs/screenshot-book.png)
+
 ---
 
 ## What it does

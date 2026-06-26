@@ -60,7 +60,7 @@ function pageOf(b, position) {
   while (lo <= hi) { const mid = (lo + hi) >> 1; if (arr[mid] <= p) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
   return ans;
 }
-// current page from the last-read position (lpr -> fpr fallback)
+// current page from the last-read position (lpr -> furthest-read fpr fallback)
 function currentPage(b) {
   const f = b.azw3f || {}, src = f.lpr || f.fpr;
   return src ? pageOf(b, src.position) : null;
