@@ -23,3 +23,7 @@ __pycache__/
 Thumbs.db
 *.png
 !docs/*.png
+!calibre-plugin/images/*.png
+
+# Calibre plugin build artifact
+calibre-plugin/kindle_reading_dashboard.zip
