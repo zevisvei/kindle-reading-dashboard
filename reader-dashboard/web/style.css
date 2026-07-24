@@ -72,6 +72,9 @@ section.block h2{margin:0 0 12px; font-size:17px; border-left:3px solid var(--ac
 .timeline li{padding:8px 0; border-bottom:1px dashed var(--border); display:flex; justify-content:space-between; gap:12px}
 .timeline li:last-child{border:0}
 .annot{background:var(--panel2); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:14px}
+.hl-text{border-left:3px solid var(--accent); padding:2px 0 2px 10px; margin-bottom:6px; font-size:15px; line-height:1.5}
+.hl-note{background:rgba(255,215,0,.08); border-radius:8px; padding:6px 10px; margin-bottom:6px; font-size:14px}
+.hl-meta{color:var(--muted); font-size:12.5px}
 pre.raw{background:#0a0d12; border:1px solid var(--border); border-radius:10px; padding:14px; overflow:auto; font-size:12.5px; direction:ltr; text-align:left; max-height:480px}
 details>summary{cursor:pointer; color:var(--muted); font-size:13px; margin-top:6px}
 .loading{text-align:center; padding:60px; color:var(--muted)}

@@ -47,6 +47,20 @@ import krds  # noqa: E402  (the patched parser)
 _log = logging.getLogger("krds")
 _log.setLevel(logging.ERROR)
 
+# Optional: highlight text extraction (azw3text/). When KRD_ASSEMBLE_AZW3 is set
+# and an unencrypted .azw3 is reachable, the sync step assembles the book text so
+# highlights show their actual words. Degrades gracefully if the module or
+# KindleUnpack is missing.
+AZW3TEXT_DIR = os.path.join(ROOT, "azw3text")
+ASSEMBLE_AZW3 = os.environ.get("KRD_ASSEMBLE_AZW3", "").lower() in ("1", "true", "yes", "on")
+BOOK_EXTS = (".azw3", ".azw", ".mobi")
+try:
+    sys.path.insert(0, AZW3TEXT_DIR)
+    import extract_highlights as _hl  # noqa: E402
+    import assemble_azw3_text as _asm  # noqa: E402
+except Exception:                      # module not present -> feature just off
+    _hl = _asm = None
+
 
 # --------------------------------------------------------------------------- #
 #  SSH sync (single persistent connection, streams files via `cat`)
@@ -117,6 +131,19 @@ def sync_ssh():
             f.write(data)
         if i % 10 == 0 or i == len(files):
             print("  %d/%d" % (i, len(files)))
+
+    # 3) optionally pull the .azw3 for annotated books and assemble their text
+    if ASSEMBLE_AZW3:
+        def _ssh_azw3(sdr_local):
+            rel = os.path.relpath(sdr_local, DOCS_CACHE).replace(os.sep, "/")
+            base = rel[:-4] if rel.endswith(".sdr") else rel
+            for ext in BOOK_EXTS:
+                data = _ssh_read(c, posixpath.join(REMOTE_DOCS, base + ext))
+                if data:
+                    return data
+            return None
+        assemble_pass(_ssh_azw3)
+
     c.close()
     print("sync complete -> %s" % CACHE)
 
@@ -136,6 +163,20 @@ def sync_local(docs):
             shutil.copy2(src, dst)
             n += 1
     print("copied %d sidecars from %s" % (n, docs))
+
+    # assemble text for annotated books straight from the local .azw3 files
+    if ASSEMBLE_AZW3:
+        def _local_azw3(sdr_local):
+            rel = os.path.relpath(sdr_local, DOCS_CACHE)
+            base = rel[:-4] if rel.endswith(".sdr") else rel
+            for ext in BOOK_EXTS:
+                src = os.path.join(docs, base + ext)
+                if os.path.isfile(src):
+                    with open(src, "rb") as f:
+                        return f.read()
+            return None
+        assemble_pass(_local_azw3)
+
     if not os.path.exists(DB_PATH):
         print("WARNING: %s missing. cc.db is not on the USB partition; pull it once "
               "via SSH (python ksh.py get /var/local/cc.db reader-dashboard/cache/cc.db)."
@@ -152,6 +193,110 @@ def decode_sidecar(path):
         return krds.KindleReaderDataStore(_log, data).deserialize()
     except Exception as e:
         return {"_error": "%s: %s" % (type(e).__name__, e)}
+
+
+# --------------------------------------------------------------------------- #
+#  Assembled book text -> highlight text (optional, azw3text/)
+# --------------------------------------------------------------------------- #
+def _assembled_path(sdr_local):
+    return os.path.join(sdr_local, "assembled_text.dat")
+
+
+def load_assembled(sdr_local):
+    """Return cached assembled book text (bytes) for a .sdr dir, or None."""
+    if not sdr_local:
+        return None
+    p = _assembled_path(sdr_local)
+    if os.path.exists(p):
+        try:
+            with open(p, "rb") as f:
+                return f.read()
+        except OSError:
+            pass
+    return None
+
+
+def _iter_cached_sdr():
+    if not os.path.isdir(DOCS_CACHE):
+        return
+    for dirpath, dirnames, _files in os.walk(DOCS_CACHE):
+        for d in dirnames:
+            if d.endswith(".sdr"):
+                yield os.path.join(dirpath, d)
+
+
+def _first_azw3r(sdr_local):
+    for f in os.listdir(sdr_local):
+        if f.endswith(".azw3r"):
+            return decode_sidecar(os.path.join(sdr_local, f))
+    return None
+
+
+def ensure_assembled(sdr_local, azw3r_obj, get_azw3_bytes):
+    """Build + cache assembled_text.dat for one book if it has annotations.
+
+    get_azw3_bytes() must return the raw .azw3 bytes (or None). Returns True if a
+    new assembled_text.dat was written. No-op unless KRD_ASSEMBLE_AZW3 is set and
+    the azw3text module imported.
+    """
+    if not (_asm and ASSEMBLE_AZW3):
+        return False
+    if os.path.exists(_assembled_path(sdr_local)):
+        return False
+    if not (_hl and _hl.has_text_annotations(azw3r_obj)):
+        return False                     # only bookmarks (or none) -> don't fetch the book
+    import tempfile
+    tmp = None
+    try:
+        data = get_azw3_bytes()
+    except Exception as e:
+        print("  azw3 fetch failed: %s" % e)
+        return False
+    if not data:
+        return False
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".azw3", delete=False) as tf:
+            tf.write(data)
+            tmp = tf.name
+        assembled = _asm.assemble_azw3_text(tmp)
+        with open(_assembled_path(sdr_local), "wb") as f:
+            f.write(assembled)
+        print("  assembled %s" % os.path.relpath(sdr_local, CACHE))
+        return True
+    except _asm.AssembleError as e:
+        print("  assemble skipped (%s): %s" % (os.path.basename(sdr_local), e))
+    except Exception as e:
+        print("  assemble error (%s): %s" % (os.path.basename(sdr_local), e))
+    finally:
+        if tmp and os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+    return False
+
+
+def assemble_pass(resolver):
+    """Walk cached .sdr dirs; assemble text for annotated books missing it.
+
+    resolver(sdr_local) -> raw azw3 bytes or None.
+    """
+    if not (ASSEMBLE_AZW3 and _asm):
+        return
+    if not _hl:
+        print("KRD_ASSEMBLE_AZW3 set but azw3text/ not importable - skipping")
+        return
+    n = 0
+    for sdr_local in _iter_cached_sdr():
+        if os.path.exists(_assembled_path(sdr_local)):
+            continue
+        azw3r = _first_azw3r(sdr_local)
+        if not _hl.has_text_annotations(azw3r):
+            continue
+        if ensure_assembled(sdr_local, azw3r, lambda s=sdr_local: resolver(s)):
+            n += 1
+    if n:
+        print("assembled text for %d annotated book(s)" % n)
 
 
 def _jload(s, default=None):
@@ -310,6 +455,7 @@ def build():
         loc = r.get("p_location") or ""
         # locate sidecars: <loc minus ext>.sdr/  under the cache
         sidecar = {"azw3f": None, "azw3r": None}
+        sdr_local = None
         if loc.startswith("/mnt/us/"):
             rel = loc[len("/mnt/us/"):]              # documents/.../book.azw3
             base, _ext = os.path.splitext(rel)
@@ -329,14 +475,19 @@ def build():
         bi = azw3f.get("book.info.store")
         stats = _stats_from_timer(tm, bi)
 
-        # annotations
-        annots = []
-        aco = (azw3r.get("annotation.cache.object") or {})
-        if isinstance(aco, dict):
-            for cls, items in aco.items():
-                if isinstance(items, list):
-                    for it in items:
-                        annots.append({"type": cls.split(".")[-1], **it})
+        # annotations (+ the highlighted text itself, if the book was assembled)
+        assembled = load_assembled(sdr_local)
+        if _hl:
+            annots = (_hl.extract_highlights(assembled, azw3r)
+                      if assembled else _hl.annotations_from_azw3r(azw3r))
+        else:
+            annots = []
+            aco = (azw3r.get("annotation.cache.object") or {})
+            if isinstance(aco, dict):
+                for cls, items in aco.items():
+                    if isinstance(items, list):
+                        for it in items:
+                            annots.append({"type": cls.split(".")[-1], **it})
 
         cde = r.get("p_cdeKey")
         ser = series_of.get(cde)

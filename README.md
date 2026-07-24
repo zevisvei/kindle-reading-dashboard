@@ -18,6 +18,7 @@ No cloud account, no Amazon API, no KOReader. Everything is parsed straight from
 
 - **Library list** — every book with title, author, series, % complete, reading time, pace (WPM), current page, and read/reading/unread status. Sortable, searchable, filterable.
 - **Per-book detail** — full metadata: reading-time model, reading-speed distribution, reading timeline, device sessions, highlights/notes, font/display prefs, all `cc.db` fields, and the raw decoded JSON of every source.
+- **Highlight text** — the Kindle stores highlights as bare *positions*; join them with the book's own text to recover the *sentences* you highlighted, fully offline. See [azw3text/](azw3text/).
 - **Position → page translation** — converts Kindle internal positions to printed page numbers via the `apnx` page map.
 - **Read/unread status** — surfaces the modern "Mark as Read" status, which the new Kindle app stores **outside** the legacy library DB (see [docs/read-state-storage.md](docs/read-state-storage.md)).
 
@@ -34,7 +35,7 @@ The Kindle keeps several independent on-device stores. This toolkit reads all of
 | Total words in book | `*.azw3f` → `book.info.store` | KRDS | |
 | Page-turn history / timeline | `*.azw3f` → `page.history.store` | KRDS | Sparse on FW 5.18.x (often one record/book). |
 | First/last read position | `*.azw3f`/`*.azw3r` → `lpr`/`fpr` | KRDS | |
-| Highlights / notes / bookmarks | `<book>.sdr/*.azw3r` → `annotation.cache.object` | KRDS | |
+| Highlights / notes / bookmarks | `<book>.sdr/*.azw3r` → `annotation.cache.object` | KRDS | Positions only; join with the book text to get the words — see [docs/highlights.md](docs/highlights.md) + [azw3text/](azw3text/). |
 | Font / margins / display prefs | `*.azw3r` → `font.prefs` | KRDS | |
 | Printed page mapping | `*.azw3r` → `apnx.key.oPNToPosition` | KRDS | Index = printed page → starting position. |
 | **Modern "Mark as Read"** + device reading sessions | `/mnt/us/system/fmcache/fmcache.db` | SQLite (fast-metrics) | The new app keeps read-state here + the cloud, NOT in `cc.db`. See [docs/read-state-storage.md](docs/read-state-storage.md). |
@@ -117,6 +118,27 @@ python reader-dashboard/dashboard.py build
 
 Opens at `http://127.0.0.1:8742/`. The **🔄 Sync** button re-pulls from the device and rebuilds.
 
+### Highlight text (opt-in)
+
+Highlights are stored as positions only. To show the actual highlighted **text**, the
+book's text has to be assembled from the `.azw3` (your own DRM-free copy). Set
+`KRD_ASSEMBLE_AZW3=1` and the sync step will, for every book that *has* highlights and
+an *unencrypted* `.azw3` within reach, assemble and cache its text (books without
+highlights are never fetched). Needs [KindleUnpack](https://github.com/kevinhendricks/KindleUnpack)
+— see [azw3text/](azw3text/) for setup.
+
+```bash
+KRD_ASSEMBLE_AZW3=1 python reader-dashboard/dashboard.py serve
+KRD_ASSEMBLE_AZW3=1 python reader-dashboard/dashboard.py serve --local D:/documents
+```
+
+Or produce highlight files directly, no dashboard:
+
+```bash
+python azw3text/assemble_azw3_text.py BOOK.azw3      # -> BOOK.dat (full book text)
+python azw3text/extract_highlights.py BOOK.azw3      # -> BOOK.highlights.md
+```
+
 ### Command-line scripts (no dashboard)
 
 The `reading-metadata/scripts/` folder has standalone CLI tools:
@@ -149,8 +171,12 @@ kindle-reading-dashboard/
 │  └─ web/                      # index.html, book.html, common.js, style.css
 ├─ reading-metadata/
 │  └─ scripts/                  # krds.py (patched) + standalone CLI tools
+├─ azw3text/                    # book-text + highlight-text extraction (uses KindleUnpack)
+│  ├─ assemble_azw3_text.py     # azw3 -> full book text (.dat/.txt)
+│  └─ extract_highlights.py     # azw3 + sidecar -> highlights with text (.md/.json)
 └─ docs/
    ├─ KRDS-format.md            # the .azw3f/.azw3r binary format, every structure
+   ├─ highlights.md             # how highlight positions map to book text (verified)
    ├─ cc-db-schema.md           # the cc.db library database schema
    ├─ read-state-storage.md     # where "Mark as Read" actually lives
    └─ usb-networking.md         # Kindle usbnet + Windows RNDIS troubleshooting
@@ -166,6 +192,7 @@ Personal reading data (`cache/`, `library.json`, CSVs, decoded sidecars) is **gi
   - https://www.mobileread.com/forums/showthread.php?t=322172
   - https://github.com/K-R-D-S/KRDS
   - This repo's copy is **patched for FW 5.18.x** (a `raw` fallback in `decode_object` and draining of unknown trailing fields) so newer firmware structures don't break decoding.
+- **KindleUnpack** by **Kevin Hendricks** et al. (**GPL v3**) — https://github.com/kevinhendricks/KindleUnpack — used by `azw3text/` to assemble a book's text so highlight positions can be resolved to words. It is used as-is (not re-implemented) and fetched separately.
 - **`cc.db` schema** documentation cross-referenced with the [kindlewiki cc.db notes](https://sighery.github.io/kindlewiki/kindle-hacking/cc.html) and the [kindle-series-manager](https://github.com/sighery/kindle-series-manager) project.
 - **Windows RNDIS driver** for Kindle USB networking by **Marco77** (MobileRead): https://www.mobileread.com/forums/showthread.php?p=3283986
 - Everything else (dashboard, fmcache read-state discovery, page mapping, FW-5.18 patches) written for this project.
@@ -178,6 +205,6 @@ Personal reading data (`cache/`, `library.json`, CSVs, decoded sidecars) is **gi
 
 - **Not affiliated with Amazon.** "Kindle" and "Amazon" are trademarks of Amazon.com, Inc. This is an independent, unofficial project; the names are used only descriptively to indicate compatibility (nominative fair use).
 - **For personal use** with your own device and your own books/documents. It reads metadata files the device already wrote; it performs **no writes** to the device (read-only sync).
-- **No DRM circumvention.** This tool reads reading-metadata and library files only. It does **not** decrypt books, strip DRM, or access protected content.
+- **No DRM circumvention.** It does **not** decrypt books, strip DRM, or access protected content. The optional highlight-text feature reads the text of your own **DRM-free** books (to turn highlight positions into words) and **skips any encrypted book**; it removes no protection.
 - **Jailbreak.** The full dashboard assumes a device with USB networking/root, which you enable yourself. Jailbreaking may violate Amazon's Terms of Service; that is between you and Amazon. This software does not jailbreak anything — it only reads files once access exists.
 - Provided **as-is, without warranty**, under the GPL v3. Use at your own risk.

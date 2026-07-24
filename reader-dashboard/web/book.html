@@ -58,13 +58,15 @@ function timelineBlock(b){
 
 function annotBlock(b){
   if(!b.annotations.length) return '';
+  const label = t => ({highlight:'Highlight',note:'Note',bookmark:'Bookmark',underline:'Underline'}[t]||t);
   const rows = b.annotations.map(a=>{
      const pg = pageOf(b, a.startPosition), t = totalPages(b);
      const pgs = pg!=null ? ` · <b>p. ${pg}${t?'/'+t:''}</b>` : '';
-     return `<div class="annot">
-     <b>${a.type==='highlight'?'Highlight':a.type==='note'?'Note':a.type==='bookmark'?'Bookmark':a.type}</b>
-     · pos ${esc(a.startPosition)}–${esc(a.endPosition)}${pgs} · ${fmtDate(a.creationTime)}
-     ${a.note?`<div style="margin-top:6px">${esc(a.note)}</div>`:''}</div>`;}).join('');
+     const quote = a.text ? `<div class="hl-text" dir="auto">${esc(a.text)}</div>` : '';
+     const note  = a.note ? `<div class="hl-note" dir="auto">📝 ${esc(a.note)}</div>` : '';
+     return `<div class="annot">${quote}${note}
+     <div class="hl-meta"><b>${label(a.type)}</b> · pos ${esc(a.startPosition)}–${esc(a.endPosition)}${pgs} · ${fmtDate(a.creationTime)}</div>
+     </div>`;}).join('');
   return `<section class="block"><h2>Highlights &amp; notes (${b.annotations.length})</h2>${rows}</section>`;
 }
 

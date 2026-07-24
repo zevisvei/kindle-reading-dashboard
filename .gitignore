@@ -9,6 +9,15 @@ reader-dashboard/web/library.json
 innovators_sidecars/
 *.csv
 
+# Assembled book text + extracted highlights (personal book content)
+**/assembled_text.dat
+**/*.highlights.md
+**/*.highlights.json
+**/*.highlights.txt
+
+# KindleUnpack fetched by `assemble_azw3_text.py --get-kindleunpack`
+azw3text/.kindleunpack/
+
 # Local SSH overrides
 .env
 
