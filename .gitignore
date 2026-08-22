@@ -5,6 +5,14 @@ reader-dashboard/web/library.json
 **/*.azw3r
 **/*.azw3f.json
 **/*.azw3r.json
+**/*.yjf
+**/*.yjr
+**/*.yjf.json
+**/*.yjr.json
+**/*.mbs
+**/*.mbp1
+**/*.mbs.json
+**/*.mbp1.json
 **/*.bad_file
 innovators_sidecars/
 *.csv

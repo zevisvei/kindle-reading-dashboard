@@ -38,6 +38,18 @@ The Kindle keeps several independent on-device stores. This toolkit reads all of
 | Highlights / notes / bookmarks | `<book>.sdr/*.azw3r` → `annotation.cache.object` | KRDS | Positions only; join with the book text to get the words — see [docs/highlights.md](docs/highlights.md) + [azw3text/](azw3text/). |
 | Font / margins / display prefs | `*.azw3r` → `font.prefs` | KRDS | |
 | Printed page mapping | `*.azw3r` → `apnx.key.oPNToPosition` | KRDS | Index = printed page → starting position. |
+
+The sidecar extensions above are the **AZW3** ones. The same KRDS structures are
+written for the other container formats, and every tool here reads all of them:
+
+| Book format | Metrics sidecar (`timer.model`, …) | Reader sidecar (annotations, …) |
+|-------------|-----------------------------------|---------------------------------|
+| AZW3 | `.azw3f` | `.azw3r` |
+| KFX | `.yjf` | `.yjr` |
+| MOBI (legacy) | `.mbs` | `.mbp1` |
+
+Note: [azw3text/](azw3text/) resolves highlight *text* for AZW3 only — it needs an
+unencrypted `.azw3` to join positions against. KFX/MOBI highlights export as positions.
 | **Modern "Mark as Read"** + device reading sessions | `/mnt/us/system/fmcache/fmcache.db` | SQLite (fast-metrics) | The new app keeps read-state here + the cloud, NOT in `cc.db`. See [docs/read-state-storage.md](docs/read-state-storage.md). |
 
 The `.sdr` "sidecar" folders live next to each book under `/mnt/us/documents/<author>/<title>.sdr/`.
@@ -62,7 +74,7 @@ The **full dashboard** needs a jailbroken device (SSH/root). Basic sidecar decod
 
 | Capability | Jailbreak needed? | Why |
 |------------|:---:|-----|
-| Reading time/pace, highlights, page mapping (from `.azw3f`/`.azw3r` sidecars) | **No** | The `.sdr` folders live in `documents/`, readable on a plain USB mount. Use the CLI scripts or `--local D:/documents`. |
+| Reading time/pace, highlights, page mapping (from the `.sdr` sidecars) | **No** | The `.sdr` folders live in `documents/`, readable on a plain USB mount. Use the CLI scripts or `--local D:/documents`. |
 | Full library (title/author/series/%) from `cc.db` | **Yes** | `cc.db` is in `/var/local` — not exposed over USB; needs root/SSH. |
 | "Mark as Read" status (`fmcache.db`) | **Yes** | Under `/mnt/us/system` — needs system access. |
 | Full dashboard with SSH sync | **Yes** | SSH only exists on a jailbroken device. |
@@ -144,7 +156,7 @@ python azw3text/extract_highlights.py BOOK.azw3      # -> BOOK.highlights.md
 The `reading-metadata/scripts/` folder has standalone CLI tools:
 
 ```bash
-python reading-metadata/scripts/krds.py <file.azw3f|.azw3r>   # decode one sidecar to JSON
+python reading-metadata/scripts/krds.py <sidecar>             # decode one sidecar to JSON
 python reading-metadata/scripts/reading_stats.py D:/documents # per-book time + pace table + CSV
 python reading-metadata/scripts/page_history.py D:/documents  # reading sessions / timeline
 python reading-metadata/scripts/export_annotations.py D:/documents  # highlights/notes -> CSV
@@ -155,7 +167,7 @@ python reading-metadata/scripts/dump_sidecars.py D:/documents # decode every sid
 
 ## How it works
 
-1. **sync** — pulls `cc.db`, `fmcache.db`, and every `.azw3f`/`.azw3r` under `documents` into `reader-dashboard/cache/`, preserving the folder tree. Over SSH it streams each file with `cat` (busybox has no SFTP) on a single connection, with proper shell-quoting for paths containing spaces and apostrophes.
+1. **sync** — pulls `cc.db`, `fmcache.db`, and every KRDS sidecar (AZW3, KFX, MOBI) under `documents` into `reader-dashboard/cache/`, preserving the folder tree. Over SSH it streams each file with `cat` (busybox has no SFTP) on a single connection, with proper shell-quoting for paths containing spaces and apostrophes.
 2. **build** — joins each `cc.db` `Entry:Item` to its `.sdr` sidecar via `p_location`, decodes the KRDS sidecars with the patched `krds.py`, merges the `fmcache.db` read-state + sessions, computes derived stats, and writes `reader-dashboard/web/library.json`.
 3. **serve** — a stdlib `http.server` serves `web/` (with `no-store` headers) plus a `POST /api/refresh` endpoint.
 
@@ -175,7 +187,7 @@ kindle-reading-dashboard/
 │  ├─ assemble_azw3_text.py     # azw3 -> full book text (.dat/.txt)
 │  └─ extract_highlights.py     # azw3 + sidecar -> highlights with text (.md/.json)
 └─ docs/
-   ├─ KRDS-format.md            # the .azw3f/.azw3r binary format, every structure
+   ├─ KRDS-format.md            # the KRDS sidecar binary format, every structure
    ├─ highlights.md             # how highlight positions map to book text (verified)
    ├─ cc-db-schema.md           # the cc.db library database schema
    ├─ read-state-storage.md     # where "Mark as Read" actually lives

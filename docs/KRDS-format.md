@@ -30,7 +30,7 @@ Every value is tagged with a type byte. An object is `OBJECT_BEGIN` + name (UTF)
 
 ---
 
-## Reading time & pace (in `.azw3f`) — the most useful data
+## Reading time & pace (in the metrics sidecar: `.azw3f` / `.yjf` / `.mbs`) — the most useful data
 
 ### `timer.model` — the book's reading-time model
 | Field | Type | Meaning |
@@ -73,7 +73,7 @@ Array of `page.history.record`: `{position (string), time (ISO datetime)}`. The 
 
 ---
 
-## Reading position (in `.azw3f` and `.azw3r`)
+## Reading position (in both the metrics and reader sidecars)
 
 - **`lpr`** — Last Page Read: `{position, time}`. Old style is just a position string; version ≤2 adds time.
 - **`fpr`** — Furthest Position Read: the highest position ever reached, not the most recent. Extended shape `{position, time, timeZoneOffset, country, device}`. Verified empirically: page forward N screens then back M — `fpr` advances by ~N (furthest), `lpr` by ~(N−M) (last).
@@ -83,7 +83,7 @@ Array of `page.history.record`: `{position (string), time (ISO datetime)}`. The 
 
 ---
 
-## Annotations (in `.azw3r`)
+## Annotations (in the reader sidecar: `.azw3r` / `.yjr` / `.mbp1`)
 
 ### `annotation.cache.object`
 Cache of all annotations, grouped by type. Empty (`[]`) if none.
@@ -103,7 +103,7 @@ Cache of all annotations, grouped by type. Empty (`[]`) if none.
 
 ---
 
-## Display preferences (in `.azw3r`)
+## Display preferences (in the reader sidecar: `.azw3r` / `.yjr` / `.mbp1`)
 
 ### `font.prefs`
 `typeface`, `lineSp`, `size`, `align`, `insetTop/Left/Bottom/Right`, `bold`, `userSideloadableFont`, `customFontIndex`, `mobi7SystemFont`, `mobi7RestoreFont`, `readingPresetSelected`. On FW 5.18.x extra trailing fields appear; the patched parser stores them under `_unparsed_trailing`.

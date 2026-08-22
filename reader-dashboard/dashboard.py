@@ -2,7 +2,8 @@
 """
 Kindle Reader Dashboard
 =======================
-Pulls the Kindle library DB (cc.db) + reading-metadata sidecars (.azw3f/.azw3r),
+Pulls the Kindle library DB (cc.db) + reading-metadata sidecars
+(AZW3 .azw3f/.azw3r, KFX .yjf/.yjr, MOBI .mbs/.mbp1),
 decodes them, and serves a local web UI:
   - a list of every book with basic metadata
   - a detail page per book with ALL metadata (cc.db + KRDS sidecars)
@@ -40,6 +41,13 @@ DB_PATH = os.path.join(CACHE, "cc.db")
 FMCACHE_PATH = os.path.join(CACHE, "fmcache.db")
 DOCS_CACHE = os.path.join(CACHE, "documents")
 REMOTE_DOCS = "/mnt/us/documents"
+
+# KRDS sidecar extensions, by container format: AZW3, KFX, legacy MOBI.
+# METRICS_* hold timer.model / book.info.store / page.history.store,
+# READER_* hold annotations / font.prefs / apnx.key.
+METRICS_EXTS = (".azw3f", ".yjf", ".mbs")
+READER_EXTS = (".azw3r", ".yjr", ".mbp1")
+SIDECAR_EXTS = METRICS_EXTS + READER_EXTS
 
 sys.path.insert(0, KRDS_DIR)
 import krds  # noqa: E402  (the patched parser)
@@ -118,8 +126,9 @@ def sync_ssh():
     except Exception as e:
         print("fmcache.db skipped (%s)" % e)
     # 2) every sidecar under documents
+    find_expr = " -o ".join("-name '*%s'" % ext for ext in SIDECAR_EXTS)
     _in, out, _e = c.exec_command(
-        "find '%s' \\( -name '*.azw3f' -o -name '*.azw3r' \\)" % REMOTE_DOCS)
+        "find '%s' \\( %s \\)" % (REMOTE_DOCS, find_expr))
     files = [l for l in out.read().decode("utf-8", "replace").splitlines() if l.strip()]
     print("found %d sidecars" % len(files))
     for i, remote in enumerate(files, 1):
@@ -155,7 +164,7 @@ def sync_local(docs):
     # cc.db: try the mount root's /system or var? On USB mass-storage cc.db is NOT
     # exposed, so allow a pre-pulled cache/cc.db to stand. Only sidecars come from USB.
     n = 0
-    for pat in ("**/*.azw3f", "**/*.azw3r"):
+    for pat in ["**/*" + ext for ext in SIDECAR_EXTS]:
         for src in glob.glob(os.path.join(docs, pat), recursive=True):
             rel = os.path.relpath(src, docs)
             dst = os.path.join(DOCS_CACHE, rel)
@@ -227,7 +236,7 @@ def _iter_cached_sdr():
 
 def _first_azw3r(sdr_local):
     for f in os.listdir(sdr_local):
-        if f.endswith(".azw3r"):
+        if f.endswith(READER_EXTS):
             return decode_sidecar(os.path.join(sdr_local, f))
     return None
 
@@ -464,9 +473,9 @@ def build():
             if os.path.isdir(sdr_local):
                 for f in os.listdir(sdr_local):
                     p = os.path.join(sdr_local, f)
-                    if f.endswith(".azw3f"):
+                    if f.endswith(METRICS_EXTS):
                         sidecar["azw3f"] = decode_sidecar(p)
-                    elif f.endswith(".azw3r"):
+                    elif f.endswith(READER_EXTS):
                         sidecar["azw3r"] = decode_sidecar(p)
 
         azw3f = sidecar["azw3f"] or {}

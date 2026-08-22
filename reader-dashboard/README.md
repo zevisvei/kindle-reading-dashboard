@@ -15,6 +15,7 @@ python dashboard.py sync | build       # individual steps
 - `web/common.js` — shared helpers (date/number formatting, page mapping, read-status)
 - Generated `web/library.json` and `cache/` hold your personal data and are git-ignored.
 
-Reads `cc.db` (library), the KRDS `.azw3f`/`.azw3r` sidecars (reading data), and
+Reads `cc.db` (library), the KRDS sidecars (AZW3 `.azw3f`/`.azw3r`, KFX
+`.yjf`/`.yjr`, MOBI `.mbs`/`.mbp1`) for reading data, and
 `fmcache.db` (modern read-state + device sessions — see
 [../docs/read-state-storage.md](../docs/read-state-storage.md)).
