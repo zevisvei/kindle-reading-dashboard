@@ -2,9 +2,10 @@
 """
 page_history.py - Build a reading timeline / sessions from page.history.store.
 
-Each .azw3f holds page.history.store = list of {position, time}. This groups
-consecutive page-turn timestamps into reading sessions (gap > GAP_MIN minutes
-starts a new session) and reports per-book and per-day reading activity.
+Each metrics sidecar (.azw3f / .yjf / .mbs) holds page.history.store = a list of
+{position, time}. This groups consecutive page-turn timestamps into reading
+sessions (gap > GAP_MIN minutes starts a new session) and reports per-book and
+per-day reading activity.
 
 Usage:
     python page_history.py [DOCUMENTS_DIR] [GAP_MIN]
@@ -17,10 +18,21 @@ DOCS = sys.argv[1] if len(sys.argv) > 1 else "D:/documents"
 GAP_MIN = float(sys.argv[2]) if len(sys.argv) > 2 else 15.0
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# Metrics sidecars, by container format: AZW3, KFX, legacy MOBI.
+METRICS_EXTS = (".azw3f", ".yjf", ".mbs")
+
+
+def _strip_ext(name, exts):
+    """Drop the sidecar extension (the basename also carries a device hash)."""
+    for ext in exts:
+        if ext in name:
+            return name.rsplit(ext, 1)[0]
+    return name
+
 
 def clean_title(path):
     b = os.path.basename(path).split("7d1790cc")[0]
-    return b.rsplit(".azw3f", 1)[0].strip(" -_")
+    return _strip_ext(b, METRICS_EXTS).strip(" -_")
 
 
 def parse(t):
@@ -47,7 +59,10 @@ def sessions(times, gap_min):
 def main():
     by_day = {}
     rows = []
-    for j in glob.glob(os.path.join(DOCS, "**", "*.azw3f.json"), recursive=True):
+    files = []
+    for ext in METRICS_EXTS:
+        files += glob.glob(os.path.join(DOCS, "**", "*" + ext + ".json"), recursive=True)
+    for j in files:
         try:
             d = json.load(open(j, encoding="utf-8"))
         except Exception:

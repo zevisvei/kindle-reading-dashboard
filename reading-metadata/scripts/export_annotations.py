@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-export_annotations.py - Export highlights / notes / bookmarks from .azw3r.
+export_annotations.py - Export highlights / notes / bookmarks from the reader
+sidecars (.azw3r for AZW3, .yjr for KFX, .mbp1 for legacy MOBI).
 
-Reads annotation.cache.object from every decoded .azw3r.json and writes them
+Reads annotation.cache.object from every decoded sidecar .json and writes them
 to annotations.csv (type, book, start, end, created, note text).
 
 Run dump_sidecars.py first (or this will decode on the fly).
@@ -17,15 +18,29 @@ DOCS = sys.argv[1] if len(sys.argv) > 1 else "D:/documents"
 HERE = os.path.dirname(os.path.abspath(__file__))
 KRDS_PY = os.path.join(HERE, "krds.py")
 
+# Reader sidecars, by container format: AZW3, KFX, legacy MOBI.
+READER_EXTS = (".azw3r", ".yjr", ".mbp1")
+
+
+def _strip_ext(name, exts):
+    """Drop the sidecar extension (the basename also carries a device hash)."""
+    for ext in exts:
+        if ext in name:
+            return name.rsplit(ext, 1)[0]
+    return name
+
 
 def clean_title(path):
     b = os.path.basename(path).split("7d1790cc")[0]
-    return b.rsplit(".azw3r", 1)[0].strip(" -_")
+    return _strip_ext(b, READER_EXTS).strip(" -_")
 
 
 def main():
     rows = []
-    for f in glob.glob(os.path.join(DOCS, "**", "*.azw3r"), recursive=True):
+    files = []
+    for ext in READER_EXTS:
+        files += glob.glob(os.path.join(DOCS, "**", "*" + ext), recursive=True)
+    for f in files:
         j = f + ".json"
         if not os.path.exists(j):
             subprocess.run([sys.executable, KRDS_PY, f], capture_output=True, timeout=60)

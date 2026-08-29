@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-reading_stats.py - Kindle native reading statistics from .azw3f sidecars.
+reading_stats.py - Kindle native reading statistics from the metrics sidecars.
 
-Decodes every <book>.sdr/*.azw3f via the (patched) krds.py in this folder,
-pulls timer.model + book.info.store, prints a per-book table + totals,
-and writes reading_stats.csv next to this script.
+Decodes every <book>.sdr metrics sidecar — *.azw3f (AZW3), *.yjf (KFX), *.mbs
+(MOBI) — via the (patched) krds.py in this folder, pulls timer.model +
+book.info.store, prints a per-book table + totals, and writes
+reading_stats.csv next to this script.
 
 Usage:
     python reading_stats.py [DOCUMENTS_DIR]
@@ -16,21 +17,33 @@ DOCS = sys.argv[1] if len(sys.argv) > 1 else "D:/documents"
 HERE = os.path.dirname(os.path.abspath(__file__))
 KRDS_PY = os.path.join(HERE, "krds.py")
 
+# Metrics sidecars, by container format: AZW3, KFX, legacy MOBI.
+METRICS_EXTS = (".azw3f", ".yjf", ".mbs")
+
+
+def _strip_ext(name, exts):
+    """Drop the sidecar extension (the basename also carries a device hash)."""
+    for ext in exts:
+        if ext in name:
+            return name.rsplit(ext, 1)[0]
+    return name
+
 
 def decode_all(docs):
     out = []
-    for f in glob.glob(os.path.join(docs, "**", "*.azw3f"), recursive=True):
-        j = f + ".json"
-        if not (os.path.exists(j) and os.path.getmtime(j) >= os.path.getmtime(f)):
-            subprocess.run([sys.executable, KRDS_PY, f], capture_output=True, timeout=60)
-        if os.path.exists(j):
-            out.append(j)
+    for ext in METRICS_EXTS:
+        for f in glob.glob(os.path.join(docs, "**", "*" + ext), recursive=True):
+            j = f + ".json"
+            if not (os.path.exists(j) and os.path.getmtime(j) >= os.path.getmtime(f)):
+                subprocess.run([sys.executable, KRDS_PY, f], capture_output=True, timeout=60)
+            if os.path.exists(j):
+                out.append(j)
     return out
 
 
 def clean_title(path):
     b = os.path.basename(path).split("7d1790cc")[0]
-    return b.rsplit(".azw3f", 1)[0].strip(" -_")
+    return _strip_ext(b, METRICS_EXTS).strip(" -_")
 
 
 def main():

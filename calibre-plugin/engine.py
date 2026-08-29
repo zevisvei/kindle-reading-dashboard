@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """
 Data layer: pull Kindle on-device reading metadata (USB or SSH), decode the
-KRDS `.azw3f`/`.azw3r` sidecars (+ cc.db / fmcache.db over SSH), and return a
-normalised per-book list ready to map onto Calibre books.
+KRDS sidecars — AZW3 `.azw3f`/`.azw3r`, KFX `.yjf`/`.yjr`, MOBI `.mbs`/`.mbp1`
+(+ cc.db / fmcache.db over SSH) — and return a normalised per-book list ready
+to map onto Calibre books.
 
 Self-contained: only the Python standard library + the bundled `krds` parser.
 SSH uses paramiko when importable, otherwise shells out to the system `ssh`.
@@ -31,6 +32,13 @@ _log.propagate = False
 REMOTE_DOCS = "/mnt/us/documents"
 REMOTE_CCDB = "/var/local/cc.db"
 REMOTE_FMCACHE = "/mnt/us/system/fmcache/fmcache.db"
+
+# KRDS sidecar extensions, by container format: AZW3, KFX, legacy MOBI.
+# METRICS_* hold timer.model / book.info.store, READER_* hold annotations,
+# font.prefs and apnx.key.
+METRICS_EXTS = (".azw3f", ".yjf", ".mbs")
+READER_EXTS = (".azw3r", ".yjr", ".mbp1")
+SIDECAR_EXTS = METRICS_EXTS + READER_EXTS
 
 
 def _no_window_kwargs():
@@ -256,8 +264,8 @@ class SSH(object):
         return self.run_bytes("cat %s" % q)
 
     def find_sidecars(self):
-        cmd = ("find '%s' \\( -name '*.azw3f' -o -name '*.azw3r' \\)"
-               % REMOTE_DOCS)
+        find_expr = " -o ".join("-name '*%s'" % ext for ext in SIDECAR_EXTS)
+        cmd = "find '%s' \\( %s \\)" % (REMOTE_DOCS, find_expr)
         data = self.run_bytes(cmd)
         return [l for l in data.decode("utf-8", "replace").splitlines()
                 if l.strip()]
@@ -323,7 +331,7 @@ def sync_usb(documents, cache, progress=lambda *a: None):
     docs = os.path.join(cache, "documents")
     os.makedirs(docs, exist_ok=True)
     srcs = []
-    for pat in ("**/*.azw3f", "**/*.azw3r"):
+    for pat in ["**/*" + ext for ext in SIDECAR_EXTS]:
         srcs += glob.glob(os.path.join(documents, pat), recursive=True)
     for i, src in enumerate(srcs, 1):
         rel = os.path.relpath(src, documents)
@@ -505,9 +513,9 @@ def build_from_ccdb(cache):
             if os.path.isdir(sdr):
                 for f in os.listdir(sdr):
                     p = os.path.join(sdr, f)
-                    if f.endswith(".azw3f"):
+                    if f.endswith(METRICS_EXTS):
                         azw3f = decode_sidecar(p)
-                    elif f.endswith(".azw3r"):
+                    elif f.endswith(READER_EXTS):
                         azw3r = decode_sidecar(p)
         cde = r.get("p_cdeKey")
         fm_rs = fm["read_state"].get(cde)
@@ -534,11 +542,11 @@ def build_from_usb(cache):
     docs = os.path.join(cache, "documents")
     books = []
     for dirpath, _dirs, files in os.walk(docs):
-        f3 = [f for f in files if f.endswith(".azw3f")]
+        f3 = [f for f in files if f.endswith(METRICS_EXTS)]
         if not f3:
             continue
         azw3f = decode_sidecar(os.path.join(dirpath, f3[0]))
-        r_files = [f for f in files if f.endswith(".azw3r")]
+        r_files = [f for f in files if f.endswith(READER_EXTS)]
         azw3r = decode_sidecar(os.path.join(dirpath, r_files[0])) if r_files else {}
         # folder name: "<title> - <author>.sdr"
         folder = os.path.basename(dirpath)

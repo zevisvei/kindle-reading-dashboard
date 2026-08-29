@@ -5,7 +5,8 @@ custom columns, and launches the standalone web dashboard.
 
 Per book it can fill: **reading hours, pace (WPM), progress %, furthest page,
 words read, read/reading/unread status.** All decoded from the device's own
-`.azw3f`/`.azw3r` sidecars (+ `cc.db` / `fmcache.db` over SSH) — no cloud, no
+KRDS sidecars (`.azw3f`/`.azw3r`, `.yjf`/`.yjr`, `.mbs`/`.mbp1`)
+(+ `cc.db` / `fmcache.db` over SSH) — no cloud, no
 Amazon API.
 
 ## Build & install

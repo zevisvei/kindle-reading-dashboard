@@ -7,7 +7,8 @@ percent progress, furthest page, words read, read/unread status) and writes it
 into Calibre custom columns. Also launches the standalone web dashboard.
 
 Data source is auto-detected: the connected USB Kindle's `documents/` folder
-(reading stats from the `.azw3f`/`.azw3r` sidecars), falling back to SSH
+(reading stats from the KRDS sidecars: AZW3 `.azw3f`/`.azw3r`, KFX `.yjf`/`.yjr`,
+MOBI `.mbs`/`.mbp1`), falling back to SSH
 (usbnet) which additionally pulls `cc.db` + `fmcache.db` for read-state.
 """
 from calibre.customize import InterfaceActionBase
