@@ -352,6 +352,16 @@ class KindleReaderDataStore(object):
             obj["position"] = self.decode_position(val.pop(0))
             obj["time"] = datetime.datetime.fromtimestamp(val.pop(0) / 1000.0).isoformat()
 
+        elif name == "whisperstore.migration.status":
+            # Appeared on FW 5.19.x (seen on a Kindle ColorSoft), only ever in
+            # the .azw3f sidecar, right after page.history.store. Two booleans,
+            # both false on every sideloaded book checked (33 files) - looks
+            # like "this book's reading data has/has not been migrated to the
+            # Whispersync store". Named per this file's convention for fields
+            # whose meaning is not confirmed.
+            obj["unknown1"] = val.pop(0)        # boolean
+            obj["unknown2"] = val.pop(0)        # boolean
+
         elif name == "reader.state.preferences":
             obj["fontPreferences"] = val.pop(0)
             obj["leftMargin"] = val.pop(0)      # int

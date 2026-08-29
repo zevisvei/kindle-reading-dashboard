@@ -111,6 +111,19 @@ Cache of all annotations, grouped by type. Empty (`[]`) if none.
 ### `reader.state.preferences`
 `fontPreferences` (→ font.prefs), `leftMargin`, `rightMargin`, `topMargin`, `bottomMargin`.
 
+### `whisperstore.migration.status`
+Two booleans, no names of their own (stored as `unknown1`, `unknown2`).
+
+Appeared on **FW 5.19.x** (found on a Kindle ColorSoft, 5.19.6). Only ever written to the
+`.azw3f` sidecar, directly after `page.history.store`. Checked across 35 `.azw3f` files:
+present in 33, absent in 2 (books that were never actually opened), and the value was
+`[false, false]` in every single one — so the meaning is unconfirmed, but the name and the
+placement next to the reading-timer data suggest a "has this book's reading data been
+migrated to the Whispersync store" flag pair. Older firmware (5.18.x) never writes it.
+
+Parsers that don't know the key still work: it is decoded as a raw list and the surrounding
+structures (`timer.model`, `book.info.store`, `lpr`) are unaffected.
+
 ### `language.store`
 `language` (string), `unknown1` (int).
 
@@ -137,7 +150,8 @@ Cache of all annotations, grouped by type. Empty (`[]`) if none.
 The original `krds.py` failed on the newer format (`font.prefs` excess values, `annotation.cache.object` pops, the unknown `whisperstore.migration.status`). The fix in this repo's `krds.py`:
 - `decode_object` wraps per-structure decoding in try/except → on failure returns the raw value list (`raw` fallback). Safe because the object is read in full (delimited by `OBJECT_END`) before decoding, so the byte stream stays aligned.
 - Unknown trailing fields are drained and preserved under `_unparsed_trailing`.
+- `whisperstore.migration.status` is now decoded properly (two booleans) instead of falling through to the raw-list branch, so the "Unknown data structure" warning is gone on FW 5.19.x.
 
 ---
 
-*Based on krds.py + a real device. FW 5.18.1, Kindle Basic 10th gen (J9G29R).*
+*Based on krds.py + real devices: FW 5.18.1 Kindle Basic 10th gen (J9G29R), and FW 5.19.6 Kindle ColorSoft.*
