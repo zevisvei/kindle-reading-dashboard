@@ -38,6 +38,7 @@ The Kindle keeps several independent on-device stores. This toolkit reads all of
 | Highlights / notes / bookmarks | `<book>.sdr/*.azw3r` → `annotation.cache.object` | KRDS | Positions only; join with the book text to get the words — see [docs/highlights.md](docs/highlights.md) + [azw3text/](azw3text/). |
 | Font / margins / display prefs | `*.azw3r` → `font.prefs` | KRDS | |
 | Printed page mapping | `*.azw3r` → `apnx.key.oPNToPosition` | KRDS | Index = printed page → starting position. |
+| **Modern "Mark as Read"** + device reading sessions | `/mnt/us/system/fmcache/fmcache.db` | SQLite (fast-metrics) | The new app keeps read-state here + the cloud, NOT in `cc.db`. See [docs/read-state-storage.md](docs/read-state-storage.md). |
 
 The sidecar extensions above are the **AZW3** ones. The same KRDS structures are
 written for the other container formats, and every tool here reads all of them:
@@ -50,7 +51,6 @@ written for the other container formats, and every tool here reads all of them:
 
 Note: [azw3text/](azw3text/) resolves highlight *text* for AZW3 only — it needs an
 unencrypted `.azw3` to join positions against. KFX/MOBI highlights export as positions.
-| **Modern "Mark as Read"** + device reading sessions | `/mnt/us/system/fmcache/fmcache.db` | SQLite (fast-metrics) | The new app keeps read-state here + the cloud, NOT in `cc.db`. See [docs/read-state-storage.md](docs/read-state-storage.md). |
 
 The `.sdr` "sidecar" folders live next to each book under `/mnt/us/documents/<author>/<title>.sdr/`.
 
