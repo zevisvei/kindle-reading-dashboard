@@ -4,6 +4,9 @@ One `## X.Y.Z` section per release. The release workflow uses the matching
 section as the GitHub release notes, and `tools/mobileread_update.py` builds
 the MobileRead "Version History" from the first line of each section.
 
+## 1.4.2
+- Fixed MTP import failing with "KeyError: 'modified'" on some Kindles (reported on a Scribe 3): a few files on the device have no modification date, and Calibre's folder listing stopped at them. The plugin now lists folders without needing that date.
+
 ## 1.4.1
 - "Words in book" now shows the whole book's size. The Kindle only stores the words it has counted so far and the share of the book they cover, so the plugin scales that up (e.g. 31,871 words counted over 14% of the book = about 220,000).
 - Note: "Words read" is the Kindle's reading-timer counter (the one behind "time left in book"). It only counts pages read at a normal pace, so it is lower than the words actually read.

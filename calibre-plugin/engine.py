@@ -521,6 +521,19 @@ def is_mtp_kindle(dev):
         return False
 
 
+def _mtp_list(dev, storage, names):
+    """(name, is_folder) for each entry of storage/names on an MTP device.
+    Uses the driver's raw listing when available: Calibre's list_folder_by_name
+    reads x['modified'] unconditionally, and some Kindles (e.g. Scribe 3)
+    report files without a modification date -> KeyError: 'modified'."""
+    raw = getattr(dev, "list_mtp_folder_by_name", None)
+    if raw is not None:
+        return [(x["name"], bool(x.get("is_folder")))
+                for x in raw(storage, *names)]
+    return [(e.name, e.is_folder)
+            for e in dev.list_folder_by_name(storage, *names)]
+
+
 def sync_mtp(dev, cache, keep_all=False):
     """Copy every KRDS sidecar under documents/ from an MTP Kindle into
     <cache>/documents, mirroring the device layout (same shape sync_usb
@@ -534,13 +547,13 @@ def sync_mtp(dev, cache, keep_all=False):
     found, books = [], []
 
     def walk(names):
-        for e in dev.list_folder_by_name(storage, *names):
-            if e.is_folder:
-                walk(names + (e.name,))
-            elif e.name.endswith(SIDECAR_EXTS):
-                found.append(names + (e.name,))
+        for name, is_folder in _mtp_list(dev, storage, names):
+            if is_folder:
+                walk(names + (name,))
+            elif name.endswith(SIDECAR_EXTS):
+                found.append(names + (name,))
             elif not any(n.endswith(".sdr") for n in names):
-                books.append("/".join(names[1:] + (e.name,)))
+                books.append("/".join(names[1:] + (name,)))
 
     walk(("documents",))
     save_book_list(cache, books)
